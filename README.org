@@ -1,0 +1,5 @@
+# -*- mode:org; mode:visual-line; coding:utf-8; -*-
+#+TITLE: osm-mode: OpenStreetMap for Emacs
+
+This Emacs mode provides an Emacs interface to OpenStreetMap (OSM).
+
