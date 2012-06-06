@@ -20,7 +20,7 @@
 ;; along with osm-mode.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; 
+;;
 
 ;;; Code:
 
@@ -56,26 +56,30 @@
   :group 'osm-mode
   :type 'integer)
 
-(defvar osm-params nil "Buffer local OSM parameters.")
+(defvar osm-params nil
+  "Buffer local OSM parameters.")
 (make-variable-buffer-local 'osm-params)
+
+(defun osm-params-put (prop val)
+  (setq osm-params (plist-put osm-params prop val)))
 
 (defun osm-set-zoom (zoom)
   (interactive "NZoom:")
-  (setq osm-params (plist-put osm-params :zoom zoom))
-  zoom)
+  (osm-params-put :zoom zoom) zoom)
 (defun osm-get-zoom ()
-  (plist-get osm-params :zoom))
+  (or (plist-get osm-params :zoom)
+      osm-default-zoom))
 (defun osm-zoom+ ()
   (interactive)
   (osm-set-zoom (1+ (osm-get-zoom ))))
-(defun osm-zoom+ ()
+(defun osm-zoom- ()
   (interactive)
   (osm-set-zoom (1- (osm-get-zoom ))))
 
-;;;###autoload
 (define-derived-mode osm-mode fundamental-mode "osm-mode"
   "OpenStreetMap mode"
-  :group osm-mode)
+  :group 'osm-mode
+  (osm-set-zoom (osm-get-zoom))) ; initializes zoom with default zoom if unset
 
 ;; See https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 (defvar osm-server '((mapnik . ("http://a.tile.openstreetmap.org/%zoom%/%x%/%y%.png"
@@ -142,34 +146,39 @@
     (osm-mode)
     (current-buffer)))
 
-(defun osm-retrieve-tile (url &optional expire-time)
-  (if (osm-cache-expired-p url (or expire-time osm-expire-time))
-      (url-retrieve url
-                    (lambda (status &optional cbargs)
-                      (message "status: %s cbargs: %s" status cbargs)
-                      (goto-char (point-min))
-                      (unless (search-forward "\n\n" nil t)
-                        (kill-buffer)
-                        (error "Error in http reply."))
-                      (let ((headers (buffer-substring (point-min) (point)))
-                            (data (buffer-substring (point) (point-max))))
-                        (unless (string-match-p "^HTTP/1.1 200 OK" headers)
-                          (kill-buffer)
-                          (error "Unable to fetch data."))
-                        (url-store-in-cache (current-buffer))
-                        (kill-buffer)
-                        
-                        (with-current-buffer (osm-get-buffer)
-                          ;; TODO real image placement (several tiles!)
+(defun osm-retrieve-tile (lat lon zoom &optional server-type expire-time)
+  (let ((url (osm-url lat lon zoom server-type)))
+    (if (osm-cache-expired-p url (or expire-time osm-expire-time))
+        (url-retrieve url
+                      (lambda (status &optional cbargs)
+                        (message "status: %s cbargs: %s" status cbargs)
+                        (goto-char (point-min))
+                        (unless (search-forward "\n\n" nil t)
+                          ;(kill-buffer)
+                          (error "Error in http reply."))
+                        (let ((headers (buffer-substring (point-min) (point)))
+                              (data (buffer-substring (point) (point-max))))
+                          (unless (string-match-p "^HTTP/1.1 200 OK" headers)
+                            ;(kill-buffer)
+                            (error "Unable to fetch data."))
+                          (url-store-in-cache (current-buffer))
+                          ;(kill-buffer)
 
-                          (insert-image (create-image data 'png))))))
-    ;; TODO ... cache
-    ))
+                          (with-current-buffer (osm-get-buffer)
+                            ;; TODO real image placement (several tiles!)
+;                            (osm-set-zoom zoom)
+;                            (osm-params-put :lat lat)
+;                            (osm-params-put :lon lon)
+;                            (osm-params-put :server-type server-type)
+                            (insert-image (create-image data 'png t))
+                            (insert "\n\nData provided by the OpenStreetMap project. Licensed: CC BY-SA."))))) ;; TODO improve
+      ;; TODO ... cache
+      )))
 
 ;;;###autoload
 (defun osm-show (lat lon &optional zoom server-type)
   (interactive "nLat:\nnLong:\nn")
-  (osm-retrieve-tile (osm-url lat lon zoom server-type)))
+  (osm-retrieve-tile lat lon (or zoom (osm-get-zoom)) server-type))
 
 (provide 'osm-mode)
 
