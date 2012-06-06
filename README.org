@@ -3,3 +3,4 @@
 
 This Emacs mode provides an Emacs interface to OpenStreetMap (OSM).
 
+The code is partially inspired by [[http://julien.danjou.info/software/google-maps.el][google-maps.el]]. An emacs client for Google Maps.
