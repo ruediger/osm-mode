@@ -56,33 +56,6 @@
   :group 'osm-mode
   :type 'integer)
 
-(defvar osm-params nil
-  "Buffer local OSM parameters.")
-(make-variable-buffer-local 'osm-params)
-
-(defun osm-params-put (prop val)
-  (setq osm-params (plist-put osm-params prop val)))
-
-(defun osm-set-zoom (zoom)
-  (interactive "NZoom:")
-  (osm-params-put :zoom zoom)
-  (osm-reload)
-  zoom)
-(defun osm-get-zoom ()
-  (or (plist-get osm-params :zoom)
-      osm-default-zoom))
-(defun osm-zoom+ ()
-  (interactive)
-  (osm-set-zoom (1+ (osm-get-zoom ))))
-(defun osm-zoom- ()
-  (interactive)
-  (osm-set-zoom (1- (osm-get-zoom ))))
-
-(define-derived-mode osm-mode fundamental-mode "osm-mode"
-  "OpenStreetMap mode"
-  :group 'osm-mode
-  (osm-params-put :zoom (osm-get-zoom))) ; initializes zoom with default zoom if unset
-
 ;; See https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames
 (defvar osm-server '((mapnik . ("http://a.tile.openstreetmap.org/%zoom%/%x%/%y%.png"
                                 "http://b.tile.openstreetmap.org/%zoom%/%x%/%y%.png"
@@ -112,6 +85,70 @@
                                     "http://oatile4.mqcdn.com/tiles/1.0.0/osm/%zoom%/%x%/%y%.png"))
                      (migurski . ("http://tile.stamen.com/terrain-background/%zoom%/%x%/%y%.jpg")))
   "List of OSM Tile servers. Replaces %zoom%, %x%, %y% with the tile parameters and %key% if with the API key required.")
+
+(defvar osm-params nil
+  "Buffer local OSM parameters.")
+(make-variable-buffer-local 'osm-params)
+
+(defun osm-params-put (prop val)
+  (setq osm-params (plist-put osm-params prop val)))
+
+(defun osm-set-zoom (zoom)
+  (interactive "NZoom:")
+  (osm-params-put :zoom zoom)
+  (osm-reload)
+  zoom)
+(defun osm-get-zoom ()
+  (or (plist-get osm-params :zoom)
+      osm-default-zoom))
+(defun osm-zoom+ ()
+  (interactive)
+  (osm-set-zoom (1+ (osm-get-zoom ))))
+(defun osm-zoom- ()
+  (interactive)
+  (osm-set-zoom (1- (osm-get-zoom ))))
+
+(defun osm-check-server-type (type)
+  "Check if current server-type is TYPE."
+  (eq (plist-get osm-params :server-type) type))
+(defun osm-set-server-type (type)
+  "Set server-type to TYPE."
+  (interactive "SServer Type:") ;; TODO autocomplete
+  (unless (assoc type osm-server)
+    (error "Unkown server type `%s'" type))
+  (osm-params-put :server-type type)
+  (osm-reload))
+
+(defvar osm-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "+") 'osm-zoom+)
+    (define-key map (kbd "-") 'osm-zoom-)
+    (define-key map (kbd "z") 'osm-set-zoom)
+    (define-key map (kbd "g") 'osm-reload)
+    map)
+  "Keymap for `osm-mode'.")
+
+(easy-menu-define osm-menu osm-map
+  "OSM Mode Menu"
+  `("OpenStreetMap"
+    ["Zoom In" osm-zoom+ t]
+    ["Zoom Out" osm-zoom- t]
+    ["Zoom" osm-zoom t]
+    "--"
+    ,(append '("Server Types")
+             (mapcar (lambda (x)
+                       (let ((server-type (car x)))
+                         (vector (symbol-name server-type)
+                                 (list 'osm-set-server-type `(quote ,server-type))
+                                 :style 'radio
+                                 :selected (list 'osm-check-server-type `(quote ,server-type)))))
+                       osm-server))))
+
+(define-derived-mode osm-mode fundamental-mode "osm-mode"
+  "OpenStreetMap mode"
+  :group 'osm-mode
+  (setq inhibit-read-only t)
+  (osm-params-put :zoom (osm-get-zoom))) ; initializes zoom with default zoom if unset
 
 (defun osm-latlon2tilexy (lat lon zoom)
   "Convert LAT/LON with ZOOM into tilexy format required by OSM tile server."
@@ -150,12 +187,12 @@
   (goto-char (point-min))
   (unless (search-forward "\n\n" nil t)
     (kill-buffer)
-    (error "Error in http reply."))
+    (error "Error in http reply"))
   (let ((headers (buffer-substring (point-min) (point)))
         (data (buffer-substring (point) (point-max))))
     (unless (string-match-p "^HTTP/1.1 200 OK" headers)
       (kill-buffer)
-      (error "Unable to fetch data."))
+      (error "Unable to fetch data"))
     (unless no-cache
       (url-store-in-cache (current-buffer)))
     (kill-buffer)
