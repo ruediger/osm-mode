@@ -43,6 +43,7 @@
   "Handle retrieved data.
 Internal function."
   (switch-to-buffer (current-buffer))
+;  (decode-coding-region (point-min) (point-max) 'utf-8)
   (goto-char (point-min))
   (unless (search-forward "\n\n" nil t)
     (kill-buffer)
@@ -125,6 +126,18 @@ See http://www.geonames.org/export/geonames-search.html for more information."
                            (cdr (assoc 'message status)))))
          (insert msg)
          (error msg)))
+
+     (let ((geonames (cdr (assoc 'geonames json))))
+       (unless geonames
+         (error "Failed to parse message format"))
+
+       (mapc (lambda (x)
+               (insert (format "* %s\t%s\t%s %s\n"
+                               (cdr (assoc 'name x))
+                               (cdr (assoc 'fcodeName x))
+                               (cdr (assoc 'lat x))
+                               (cdr (assoc 'lng x)))))
+             geonames))
 
      (setq dbg-geonames-json json))))
 
