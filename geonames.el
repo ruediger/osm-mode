@@ -100,6 +100,8 @@ Example: (geonames-search '((q . \"foo\") (lang . \"de\")))"
   :group 'geonames
   :type 'string)
 
+(defvar dbg-geonames-json nil)
+
 (defun geonames-search (q)
   "Search geonames for any attribute containing Q.
 This is a simple search function for user interaction.
@@ -114,7 +116,17 @@ See http://www.geonames.org/export/geonames-search.html for more information."
    (lambda (url json)
      (switch-to-buffer geonames-search-buffer-name)
      (goto-char (point-max))
-     (insert (format "JSON: %s\n" json)))))
+     ; (insert (format "JSON: %s\n" json))
+     (when (assoc 'status json)
+       ;; See http://www.geonames.org/export/webservice-exception.html
+       (let* ((status (cdr (assoc 'status json)))
+              (msg (format "Geonames Error %s: %s\n"
+                           (cdr (assoc 'value status))
+                           (cdr (assoc 'message status)))))
+         (insert msg)
+         (error msg)))
+
+     (setq dbg-geonames-json json))))
 
 
 (provide 'geonames)
