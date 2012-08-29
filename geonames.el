@@ -118,6 +118,32 @@ Example: (geonames-search '((q . \"foo\") (lang . \"de\")))"
   'follow-link t
   'help-echo "View location with `osm-mode'.")
 
+(defface geonames-error
+  '((t :inherit error))
+  "Face used to highlight errors."
+  :group 'geonames)
+
+(defface geonames-search-header
+  '((t :inherit header-line))
+  "Face for search header."
+  :group 'geonames)
+
+(defface geonames-search-term
+  '((t :inherit header-line))
+  "Face for search term in header."
+  :group 'geonames)
+
+(defface geonames-entry
+  '((t :inherit header-line))
+  "Face for entry line."
+  :group 'geonames)
+
+(defun geonames~insert-line (line face &optional line-length)
+  "Insert LINE and fill till LINE-LENGTH (default 80) with face FACE."
+  (insert line
+          (propertize (make-string (- (or line-length 80) (length line)) ?\s) 'face face)
+          "\n"))
+
 (defun geonames-search (q)
   "Search geonames for any attribute containing Q.
 This is a simple search function for user interaction.
@@ -126,7 +152,11 @@ See http://www.geonames.org/export/geonames-search.html for more information."
   (interactive "sSearch on Geonames for: ")
   (switch-to-buffer geonames-search-buffer-name)
   (goto-char (point-max))
-  (insert (format "\nGeonames search: %s\n" q))
+  (geonames~insert-line
+   (concat "\n"
+           (propertize "Geonames search: " 'face 'geonames-search-header)
+           (propertize q 'face 'geonames-search-term))
+   'geonames-search-header)
   (geonames-retrieve
    (geonames-search-url (list (cons 'q q)))
    (lambda (url json)
@@ -136,9 +166,14 @@ See http://www.geonames.org/export/geonames-search.html for more information."
      (when (assoc 'status json)
        ;; See http://www.geonames.org/export/webservice-exception.html
        (let* ((status (cdr (assoc 'status json)))
-              (msg (format "Geonames Error %s: %s\n"
-                           (cdr (assoc 'value status))
-                           (cdr (assoc 'message status)))))
+              (msg (concat
+                    (propertize
+                     (format "Geonames Error %s"
+                             (cdr (assoc 'value status)))
+                     'face 'geonames-error)
+                    ": "
+                    (cdr (assoc 'message status))
+                    "\n")))
          (insert msg)
          (error msg)))
 
