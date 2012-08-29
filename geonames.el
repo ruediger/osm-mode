@@ -43,6 +43,7 @@
   "Handle retrieved data.
 Internal function."
   (switch-to-buffer (current-buffer))
+  (setq buffer-file-coding-system 'utf-8)
 ;  (decode-coding-region (point-min) (point-max) 'utf-8)
   (goto-char (point-min))
   (unless (search-forward "\n\n" nil t)
