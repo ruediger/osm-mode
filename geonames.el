@@ -104,6 +104,20 @@ Example: (geonames-search '((q . \"foo\") (lang . \"de\")))"
 
 (defvar dbg-geonames-json nil)
 
+(require 'button)
+
+(defun geonames~latlng-button-action (button)
+  "Open the lat lng of BUTTON with `osm-mode'."
+  (let* ((label (button-label button))
+         (latlng (split-string label)))
+    ;(require 'osm-mode)
+    (osm-show (car latlng) (cadr latlng))))
+
+(define-button-type 'geonames~latlng-button
+  'action 'geonames~latlng-button-action
+  'follow-link t
+  'help-echo "View location with `osm-mode'.")
+
 (defun geonames-search (q)
   "Search geonames for any attribute containing Q.
 This is a simple search function for user interaction.
@@ -133,11 +147,15 @@ See http://www.geonames.org/export/geonames-search.html for more information."
          (error "Failed to parse message format"))
 
        (mapc (lambda (x)
-               (insert (format "* %s\t%s\t%s %s\n"
+               (insert (format "* %s;\t%s;\t%s;\t"
                                (cdr (assoc 'name x))
-                               (cdr (assoc 'fcodeName x))
-                               (cdr (assoc 'lat x))
-                               (cdr (assoc 'lng x)))))
+                               (cdr (assoc 'countryName x))
+                               (cdr (assoc 'fcodeName x))))
+               (insert-text-button (format "%s %s"
+                                           (cdr (assoc 'lat x))
+                                           (cdr (assoc 'lng x)))
+                                   'type 'geonames~latlng-button)
+               (insert "\n"))
              geonames))
 
      (setq dbg-geonames-json json))))
