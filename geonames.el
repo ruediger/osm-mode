@@ -144,6 +144,32 @@ Example: (geonames-search '((q . \"foo\") (lang . \"de\")))"
           (propertize (make-string (- (or line-length 80) (length line)) ?\s) 'face face)
           "\n"))
 
+(defvar geonames-entry-format
+  '( ("* " 'face geonames-entry)
+     (name 'face geonames-entry) ";\t" countryName ";\t" fcodeName ";\t" latlng)
+  "Format for geoname entries.  Strings are inserted as is and symbols are extracted from the json source.  Except for latlng which is specially treated and inserts the latlng text button.  If the element is a list then the car is inserted and the cdr applied as property.")
+
+(defun geonames~format-get (i entry)
+  "Return I or if I is a symbol get I from ENTRY."
+  (if (symbolp i)
+    (cdr (assoc i entry))
+    i))
+
+(defun geonames~format-insert (entry)
+  "Insert the content of ENTRY according to the variable `geonames-entry-format' into the current buffer."
+  (loop for i in geonames-entry-format
+        if (eq 'latlng i)
+          do (insert-text-button (format "%s %s"
+                                         (cdr (assoc 'lat entry))
+                                         (cdr (assoc 'lng entry)))
+                                 'type 'geonames~latlng-button)
+        if (listp i)
+          do (insert (apply #'propertize
+                            (geonames~format-get (car i) entry)
+                            (cdr i)))
+        else
+          do (insert (geonames~format-get i entry))))
+
 (defun geonames-search (q)
   "Search geonames for any attribute containing Q.
 This is a simple search function for user interaction.
