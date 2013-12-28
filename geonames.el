@@ -3,6 +3,7 @@
 ;; Copyright (C) 2012 Rüdiger Sonderfeld
 
 ;; Author: Rüdiger Sonderfeld <ruediger@c-plusplus.de>
+;; URL: https://github.com/ruediger/osm-mode
 
 ;; This file is NOT part of GNU Emacs.
 
